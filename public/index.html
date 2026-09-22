@@ -520,6 +520,19 @@
 
     .board-hint { font-size: 0.76rem; color: #aaa; margin-bottom: 0.85rem; }
 
+    .io-msg {
+      display: none;
+      font-size: 0.8rem;
+      border-radius: 8px;
+      padding: 0.6rem 0.85rem;
+      margin-bottom: 1rem;
+      border: 1px solid transparent;
+    }
+
+    .io-msg.visible { display: block; }
+    .io-msg.ok  { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+    .io-msg.bad { background: #fff5f5; color: #b91c1c; border-color: #fecaca; }
+
     /* Status colors */
     .status-applied      { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
     .status-interview_1  { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
@@ -892,10 +905,15 @@
           <button class="view-btn" data-view="chart">Chart</button>
         </div>
         <div class="apps-toolbar-right">
+          <input type="file" id="import-input" accept="application/json,.json" hidden />
+          <button class="btn-sm" id="export-btn" title="Download all your data as a file">Export backup</button>
+          <button class="btn-sm" id="import-btn" title="Restore from a backup file">Import</button>
           <button class="btn-sm" id="clear-all-btn" style="display:none; color:#b91c1c; border-color:#fecaca;">Clear all</button>
           <button class="btn-add" id="add-app-btn">+ Add application</button>
         </div>
       </div>
+
+      <div class="io-msg" id="io-msg"></div>
 
       <!-- Board view -->
       <div id="view-board">
@@ -1728,6 +1746,122 @@
         setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("copied"); }, 2000);
       });
     });
+
+    // ── Local backup: export / import ──
+    // Everything this app knows lives in localStorage, which is scoped to one
+    // browser on one machine. These two buttons are the escape hatch: a real
+    // file on disk that survives clearing site data and moves between devices.
+    const BACKUP_VERSION = 1;
+
+    function ioMessage(text, kind) {
+      const el = document.getElementById("io-msg");
+      el.textContent = text;
+      el.className = "io-msg visible" + (kind ? " " + kind : "");
+      clearTimeout(ioMessage._t);
+      ioMessage._t = setTimeout(() => { el.className = "io-msg"; }, 8000);
+    }
+
+    document.getElementById("export-btn").addEventListener("click", () => {
+      const apps = loadApps();
+      const payload = {
+        app: "cover-letter-agent",
+        version: BACKUP_VERSION,
+        exportedAt: new Date().toISOString(),
+        applications: apps,
+        profile: loadProfile(),
+        resume: loadResume(),
+      };
+
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `cover-letter-backup-${todayISO()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+      ioMessage(`Saved ${apps.length} application${apps.length === 1 ? "" : "s"} to your downloads folder.`, "ok");
+    });
+
+    document.getElementById("import-btn").addEventListener("click", () => {
+      document.getElementById("import-input").click();
+    });
+
+    document.getElementById("import-input").addEventListener("change", e => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          applyBackup(JSON.parse(reader.result));
+        } catch (err) {
+          ioMessage("That file could not be read as a backup: " + err.message, "bad");
+        }
+      };
+      reader.onerror = () => ioMessage("Could not read that file.", "bad");
+      reader.readAsText(file);
+      // Allow re-importing the same filename later.
+      e.target.value = "";
+    });
+
+    // Merge, never destroy: records already here are updated in place, records
+    // only in the file are added, and records only here are left alone. Profile
+    // and resume are restored only when there is nothing to overwrite.
+    function applyBackup(data) {
+      if (!data || typeof data !== "object" || !Array.isArray(data.applications)) {
+        ioMessage("That file is not a Cover Letter Agent backup.", "bad");
+        return;
+      }
+
+      const incoming = data.applications.filter(a => a && typeof a === "object" && a.company && a.role);
+      const apps = loadApps();
+      const byId = new Map(apps.map(a => [a.id, a]));
+      let added = 0, updated = 0;
+
+      incoming.forEach(raw => {
+        const rec = {
+          id:          String(raw.id || Date.now().toString() + Math.random().toString(16).slice(2)),
+          company:     String(raw.company),
+          role:        String(raw.role),
+          status:      STATUS_LABELS[raw.status] ? raw.status : "applied",
+          coverLetter: typeof raw.coverLetter === "string" ? raw.coverLetter : "",
+          date:        /^\d{4}-\d{2}-\d{2}$/.test(raw.date) ? raw.date : todayISO(),
+          url:         typeof raw.url === "string" ? raw.url : "",
+          notes:       typeof raw.notes === "string" ? raw.notes : "",
+        };
+        if (byId.has(rec.id)) {
+          Object.assign(byId.get(rec.id), rec);
+          updated++;
+        } else {
+          apps.unshift(rec);
+          byId.set(rec.id, rec);
+          added++;
+        }
+      });
+
+      saveApps(apps);
+
+      const extras = [];
+      if (data.profile && Object.keys(data.profile).length && !Object.keys(loadProfile()).length) {
+        saveProfile(data.profile);
+        extras.push("profile");
+      }
+      if (typeof data.resume === "string" && data.resume.trim() && !loadResume()) {
+        saveResume(data.resume);
+        extras.push("resume");
+      }
+
+      renderApps();
+      renderStats();
+
+      const skipped = data.applications.length - incoming.length;
+      let msg = `Imported: ${added} added, ${updated} updated.`;
+      if (extras.length) msg += ` Restored ${extras.join(" and ")}.`;
+      if (skipped) msg += ` ${skipped} entr${skipped === 1 ? "y was" : "ies were"} skipped as incomplete.`;
+      ioMessage(msg, "ok");
+    }
 
     // ── Stats ──
     function renderStats() {
