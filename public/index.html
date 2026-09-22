@@ -395,7 +395,7 @@
 
     .board {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(160px, 1fr));
       gap: 0.75rem;
       align-items: start;
     }
@@ -546,13 +546,91 @@
     .io-msg.bad { background: #fff5f5; color: #b91c1c; border-color: #fecaca; }
 
     /* Status colors */
-    .status-applied      { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+    .status-saved        { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
+    .status-applied     { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
     .status-interview_1  { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
     .status-interview_2  { background: #f0fdf4; color: #15803d; border-color: #86efac; }
     .status-interview_3  { background: #fefce8; color: #854d0e; border-color: #fde047; }
     .status-offer        { background: #fdf4ff; color: #7e22ce; border-color: #e9d5ff; }
     .status-rejected     { background: #fff5f5; color: #b91c1c; border-color: #fecaca; }
     .status-withdrawn    { background: #f9fafb; color: #6b7280; border-color: #e5e7eb; }
+
+    /* Filter bar (shared by Board and List) */
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      margin-bottom: 0.85rem;
+    }
+    .filter-bar input[type="search"], .filter-bar select {
+      font: inherit;
+      font-size: 0.8rem;
+      padding: 0.38rem 0.6rem;
+      border: 1px solid #ddd;
+      border-radius: 7px;
+      background: #fff;
+      color: #1a1a1a;
+    }
+    .filter-bar select { width: auto; flex: 0 0 auto; max-width: 220px; }
+    .filter-bar input[type="search"] { flex: 1 1 200px; min-width: 0; }
+    .list-table select { width: auto; }
+    .container.wide { max-width: 1180px; }
+    .filter-count { font-size: 0.76rem; color: #999; margin-left: auto; }
+
+    .card-tags { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.35rem; }
+    .card-tag {
+      font-size: 0.64rem;
+      color: #555;
+      background: #f3f3f0;
+      border-radius: 4px;
+      padding: 0.05rem 0.35rem;
+      white-space: nowrap;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .card-tag.visa { background: #ecfdf5; color: #047857; }
+    .card-loc { font-size: 0.72rem; color: #999; margin-top: 0.15rem; line-height: 1.3; }
+
+    /* List view */
+    .list-wrap { overflow-x: auto; background: #fff; border: 1px solid #e2e2e2; border-radius: 10px; }
+    .list-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .list-table th {
+      text-align: left;
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #888;
+      font-weight: 600;
+      padding: 0.6rem 0.7rem;
+      border-bottom: 1px solid #eee;
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+      background: #fafaf8;
+      position: sticky;
+      top: 0;
+    }
+    .list-table th.sorted::after { content: " ▾"; }
+    .list-table th.sorted.asc::after { content: " ▴"; }
+    .list-table td { padding: 0.55rem 0.7rem; border-bottom: 1px solid #f2f2f2; vertical-align: top; }
+    .list-table tr:last-child td { border-bottom: none; }
+    .list-table tr:hover td { background: #fafaf8; }
+    .list-table .lt-company { font-weight: 600; }
+    .list-table .lt-role { cursor: pointer; }
+    .list-table .lt-role:hover { text-decoration: underline; }
+    .list-table .lt-muted { color: #888; }
+    .list-table select {
+      font: inherit;
+      font-size: 0.76rem;
+      padding: 0.2rem 0.35rem;
+      border-radius: 5px;
+      border: 1px solid #ddd;
+      background: #fff;
+    }
+    .list-table a { color: #1d4ed8; text-decoration: none; }
+    .list-table a:hover { text-decoration: underline; }
 
     /* Application detail / edit form */
     .modal-form-grid { display: flex; flex-direction: column; gap: 0.9rem; }
@@ -785,7 +863,7 @@
     #sankey-wrap svg { display: block; overflow: visible; }
 
     @media (max-width: 860px) {
-      .board { grid-template-columns: repeat(4, 210px); }
+      .board { grid-template-columns: repeat(5, 200px); }
     }
 
     @media (max-width: 560px) {
@@ -914,12 +992,14 @@
       <div class="apps-toolbar">
         <div class="view-toggle">
           <button class="view-btn active" data-view="board">Board</button>
+          <button class="view-btn" data-view="list">List</button>
           <button class="view-btn" data-view="chart">Chart</button>
         </div>
         <div class="apps-toolbar-right">
-          <input type="file" id="import-input" accept="application/json,.json" hidden />
+          <input type="file" id="import-input" accept="application/json,.json,text/csv,.csv" hidden />
           <button class="btn-sm" id="export-btn" title="Download all your data as a file">Export backup</button>
-          <button class="btn-sm" id="import-btn" title="Restore from a backup file">Import</button>
+          <button class="btn-sm" id="export-csv-btn" title="Download a spreadsheet you can open in Excel">Export CSV</button>
+          <button class="btn-sm" id="import-btn" title="Import a backup (.json) or a job list (.csv from Excel)">Import</button>
           <button class="btn-sm" id="clear-all-btn" style="display:none; color:#b91c1c; border-color:#fecaca;">Clear all</button>
           <button class="btn-add" id="add-app-btn">+ Add application</button>
         </div>
@@ -932,16 +1012,44 @@
 
       <div class="io-msg" id="io-msg"></div>
 
+      <div class="filter-bar" id="filter-bar">
+        <input type="search" id="f-search" placeholder="Search company, role, location, notes…" />
+        <select id="f-category"><option value="">All categories</option></select>
+        <select id="f-status"><option value="">All statuses</option></select>
+        <span class="filter-count" id="f-count"></span>
+      </div>
+
       <!-- Board view -->
       <div id="view-board">
         <div id="board-empty" class="empty-state" style="display:none">
           No applications yet. Generate a cover letter, or add one manually.
         </div>
         <div id="board-live">
-          <p class="board-hint">Drag a card between columns to move it. Click a card to edit details.</p>
+          <p class="board-hint">Drag a card between columns to move it. Click a card to edit details. Moving a card out of "To apply" stamps today's date as the date applied.</p>
           <div class="board-scroll">
             <div class="board" id="board"></div>
           </div>
+        </div>
+      </div>
+
+      <!-- List view -->
+      <div id="view-list" style="display:none">
+        <div class="list-wrap">
+          <table class="list-table">
+            <thead>
+              <tr>
+                <th data-sort="company">Company</th>
+                <th data-sort="role">Role</th>
+                <th data-sort="category">Category</th>
+                <th data-sort="location">Location</th>
+                <th data-sort="salary">Salary</th>
+                <th data-sort="status">Status</th>
+                <th data-sort="date">Date</th>
+                <th>Link</th>
+              </tr>
+            </thead>
+            <tbody id="list-body"></tbody>
+          </table>
         </div>
       </div>
 
@@ -949,7 +1057,7 @@
       <div id="view-chart" style="display:none">
         <div class="card">
           <div id="sankey-empty" class="empty-state" style="display:none">
-            Add applications to see the chart.
+            Apply to a few jobs to see the chart. Jobs still in "To apply" are not counted.
           </div>
           <div id="sankey-wrap"></div>
         </div>
@@ -1031,12 +1139,33 @@
         </div>
         <div class="row">
           <div class="field">
-            <label for="am-date">Date applied</label>
+            <label for="am-date" id="am-date-label">Date applied</label>
             <input type="date" id="am-date" />
           </div>
           <div class="field">
             <label for="am-status">Status</label>
             <select id="am-status"></select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="am-location">Location</label>
+            <input type="text" id="am-location" placeholder="e.g. San Francisco, CA" />
+          </div>
+          <div class="field">
+            <label for="am-salary">Salary</label>
+            <input type="text" id="am-salary" placeholder="e.g. $120-150K/yr" />
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="am-category">Category</label>
+            <input type="text" id="am-category" list="am-category-list" placeholder="e.g. Product Design" />
+            <datalist id="am-category-list"></datalist>
+          </div>
+          <div class="field">
+            <label for="am-visa">Visa sponsorship</label>
+            <input type="text" id="am-visa" placeholder="e.g. Open to sponsorship" />
           </div>
         </div>
         <div class="field">
@@ -1249,10 +1378,13 @@
         document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
         tab.classList.add("active");
         document.getElementById(`page-${tab.dataset.page}`).classList.add("active");
+        // The five-column board and the list need more room than the forms.
+        document.querySelector(".container").classList.toggle("wide", tab.dataset.page === "applications");
         if (tab.dataset.page === "applications") {
           renderStats();
           renderApps();
           refreshBackupTarget();
+          if (currentView === "list") renderList();
           if (currentView === "chart") renderSankey();
         }
         if (tab.dataset.page === "profile") initProfilePage();
@@ -1266,7 +1398,10 @@
         btn.classList.add("active");
         currentView = btn.dataset.view;
         document.getElementById("view-board").style.display = currentView === "board" ? "block" : "none";
+        document.getElementById("view-list").style.display  = currentView === "list"  ? "block" : "none";
         document.getElementById("view-chart").style.display = currentView === "chart" ? "block" : "none";
+        document.getElementById("filter-bar").style.visibility = currentView === "chart" ? "hidden" : "visible";
+        if (currentView === "list") renderList();
         if (currentView === "chart") renderSankey();
       });
     });
@@ -1463,6 +1598,7 @@
 
     // ── Application tracker ──
     const STATUS_LABELS = {
+      saved:       "To apply",
       applied:     "Applied",
       interview_1: "1st Interview",
       interview_2: "2nd Interview",
@@ -1475,7 +1611,8 @@
     // Board columns. Each maps to one or more of the granular statuses above,
     // so the Sankey chart and existing saved records keep working unchanged.
     const COLUMNS = [
-      { key: "applied",      label: "Applied",      statuses: ["applied"],                                   fallback: "applied" },
+      { key: "saved",        label: "To apply",     statuses: ["saved"],                                     fallback: "saved" },
+      { key: "applied",     label: "Applied",      statuses: ["applied"],                                   fallback: "applied" },
       { key: "interviewing", label: "Interviewing", statuses: ["interview_1", "interview_2", "interview_3"], fallback: "interview_1" },
       { key: "offer",        label: "Offer",        statuses: ["offer"],                                     fallback: "offer" },
       { key: "closed",       label: "Closed",       statuses: ["rejected", "withdrawn"],                     fallback: "rejected" },
@@ -1484,7 +1621,49 @@
     const STALE_DAYS = 14;
 
     function columnOf(status) {
-      return COLUMNS.find(c => c.statuses.includes(status)) || COLUMNS[0];
+      return COLUMNS.find(c => c.statuses.includes(status)) || COLUMNS[1];
+    }
+
+    // ── Filters (shared by Board and List) ──
+    const filters = { q: "", category: "", status: "" };
+
+    function matchesFilters(a) {
+      if (filters.category && (a.category || "") !== filters.category) return false;
+      if (filters.status && a.status !== filters.status) return false;
+      if (filters.q) {
+        const hay = [a.company, a.role, a.location, a.category, a.notes, a.salary, a.visa]
+          .join(" ").toLowerCase();
+        if (!filters.q.toLowerCase().split(/\s+/).filter(Boolean).every(t => hay.includes(t))) return false;
+      }
+      return true;
+    }
+
+    function refreshFilterOptions(apps) {
+      const catSel = document.getElementById("f-category");
+      const cats = [...new Set(apps.map(a => a.category).filter(Boolean))].sort();
+      catSel.innerHTML = `<option value="">All categories</option>` +
+        cats.map(c => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join("");
+      if (!cats.includes(filters.category)) filters.category = "";
+      catSel.value = filters.category;
+      document.getElementById("am-category-list").innerHTML =
+        cats.map(c => `<option value="${escHtml(c)}"></option>`).join("");
+    }
+
+    document.getElementById("f-status").innerHTML = `<option value="">All statuses</option>` +
+      Object.entries(STATUS_LABELS).map(([v, l]) => `<option value="${v}">${l}</option>`).join("");
+
+    document.getElementById("f-search").addEventListener("input", e => { filters.q = e.target.value.trim(); rerender(); });
+    document.getElementById("f-category").addEventListener("change", e => { filters.category = e.target.value; rerender(); });
+    document.getElementById("f-status").addEventListener("change", e => { filters.status = e.target.value; rerender(); });
+
+    function rerender() {
+      renderApps();
+      if (currentView === "list") renderList();
+    }
+
+    function updateFilterCount(total, shown) {
+      document.getElementById("f-count").textContent =
+        shown === total ? `${total} total` : `${shown} of ${total} shown`;
     }
 
     function daysSince(iso) {
@@ -1525,17 +1704,21 @@
 
     // ── Board rendering ──
     function renderApps() {
-      const apps = loadApps();
+      const all = loadApps();
       const board = document.getElementById("board");
       const empty = document.getElementById("board-empty");
       const live = document.getElementById("board-live");
       const clearBtn = document.getElementById("clear-all-btn");
 
-      updateTabCount(apps.length);
-      clearBtn.style.display = apps.length ? "inline-flex" : "none";
-      empty.style.display = apps.length ? "none" : "block";
-      live.style.display = apps.length ? "block" : "none";
-      if (!apps.length) { board.innerHTML = ""; return; }
+      updateTabCount(all.length);
+      refreshFilterOptions(all);
+      const apps = all.filter(matchesFilters);
+      updateFilterCount(all.length, apps.length);
+      document.getElementById("filter-bar").style.display = all.length ? "flex" : "none";
+      clearBtn.style.display = all.length ? "inline-flex" : "none";
+      empty.style.display = all.length ? "none" : "block";
+      live.style.display = all.length ? "block" : "none";
+      if (!all.length) { board.innerHTML = ""; return; }
 
       board.innerHTML = COLUMNS.map(col => {
         const inCol = apps.filter(a => columnOf(a.status).key === col.key);
@@ -1568,13 +1751,22 @@
         (app.notes || "").trim() ? `<span title="Has notes">&#128221;</span>` : "",
       ].join("");
 
+      const tags = [
+        app.category ? `<span class="card-tag">${escHtml(app.category)}</span>` : "",
+        app.visa ? `<span class="card-tag visa" title="${escHtml(app.visa)}">Visa &#10003;</span>` : "",
+        app.salary ? `<span class="card-tag">${escHtml(app.salary)}</span>` : "",
+      ].join("");
+      const ageTitle = app.status === "saved" ? `Added ${formatDate(app.date)}` : `Applied ${formatDate(app.date)}`;
+
       return `
         <div class="app-card${stale ? " stale" : ""}" draggable="true" data-id="${app.id}">
           <div class="card-company">${escHtml(app.company)}</div>
           <div class="card-role">${escHtml(app.role)}</div>
+          ${app.location ? `<div class="card-loc">${escHtml(app.location)}</div>` : ""}
+          ${tags ? `<div class="card-tags">${tags}</div>` : ""}
           <div class="card-meta">
             <span class="card-meta-left">
-              <span class="card-age${stale ? " stale" : ""}" title="Applied ${formatDate(app.date)}">${days}d${stale ? " &#9888; follow up" : ""}</span>
+              <span class="card-age${stale ? " stale" : ""}" title="${ageTitle}">${days}d${stale ? " &#9888; follow up" : ""}</span>
               ${badge}
             </span>
             <span class="card-icons">${icons}</span>
@@ -1627,10 +1819,85 @@
       if (!app || !col) return;
       // Already somewhere in this column — keep the finer-grained status.
       if (col.statuses.includes(app.status)) return;
-      app.status = col.fallback;
+      setStatus(app, col.fallback);
       saveApps(apps);
       renderApps();
       renderStats();
+    }
+
+    // Leaving "To apply" means the application just went out, so the date
+    // switches from "date added" to "date applied".
+    function setStatus(app, status) {
+      if (app.status === "saved" && status !== "saved") app.date = todayISO();
+      app.status = status;
+    }
+
+    // ── List view ──
+    const listSort = { key: "status", asc: true };
+    const STATUS_ORDER = Object.keys(STATUS_LABELS);
+
+    function sortValue(a, key) {
+      if (key === "status") return STATUS_ORDER.indexOf(a.status);
+      return (a[key] || "").toString().toLowerCase();
+    }
+
+    function renderList() {
+      const all = loadApps();
+      refreshFilterOptions(all);
+      const apps = all.filter(matchesFilters);
+      updateFilterCount(all.length, apps.length);
+
+      apps.sort((x, y) => {
+        const a = sortValue(x, listSort.key), b = sortValue(y, listSort.key);
+        const c = a < b ? -1 : a > b ? 1 : 0;
+        return listSort.asc ? c : -c;
+      });
+
+      document.querySelectorAll(".list-table th[data-sort]").forEach(th => {
+        th.classList.toggle("sorted", th.dataset.sort === listSort.key);
+        th.classList.toggle("asc", th.dataset.sort === listSort.key && listSort.asc);
+      });
+
+      const statusOptions = sel => Object.entries(STATUS_LABELS)
+        .map(([v, l]) => `<option value="${v}"${v === sel ? " selected" : ""}>${l}</option>`).join("");
+
+      document.getElementById("list-body").innerHTML = apps.length ? apps.map(a => `
+        <tr data-id="${a.id}">
+          <td class="lt-company">${escHtml(a.company)}</td>
+          <td class="lt-role" title="Edit">${escHtml(a.role)}${a.visa ? ` <span class="card-tag visa" title="${escHtml(a.visa)}">Visa &#10003;</span>` : ""}</td>
+          <td class="lt-muted">${escHtml(a.category || "")}</td>
+          <td class="lt-muted">${escHtml(a.location || "")}</td>
+          <td class="lt-muted">${escHtml(a.salary || "")}</td>
+          <td><select class="lt-status">${statusOptions(a.status)}</select></td>
+          <td class="lt-muted">${a.date ? formatDate(a.date) : ""}</td>
+          <td>${safeUrl(a.url) ? `<a href="${escHtml(a.url)}" target="_blank" rel="noopener">Open</a>` : ""}</td>
+        </tr>`).join("")
+        : `<tr><td colspan="8" class="lt-muted" style="text-align:center;padding:1.5rem">Nothing matches these filters.</td></tr>`;
+
+      document.querySelectorAll("#list-body tr[data-id]").forEach(tr => {
+        tr.querySelector(".lt-role").addEventListener("click", () => openAppModal(tr.dataset.id));
+        tr.querySelector(".lt-status").addEventListener("change", e => {
+          const apps = loadApps();
+          const app = apps.find(x => x.id === tr.dataset.id);
+          if (!app) return;
+          setStatus(app, e.target.value);
+          saveApps(apps);
+          renderStats();
+          renderList();
+        });
+      });
+    }
+
+    document.querySelectorAll(".list-table th[data-sort]").forEach(th => {
+      th.addEventListener("click", () => {
+        if (listSort.key === th.dataset.sort) listSort.asc = !listSort.asc;
+        else { listSort.key = th.dataset.sort; listSort.asc = true; }
+        renderList();
+      });
+    });
+
+    function safeUrl(u) {
+      return typeof u === "string" && /^https?:\/\//i.test(u.trim());
     }
 
     // ── Add / edit modal ──
@@ -1656,6 +1923,11 @@
       document.getElementById("am-status").value  = app ? app.status : "applied";
       document.getElementById("am-url").value     = app ? (app.url || "") : "";
       document.getElementById("am-notes").value   = app ? (app.notes || "") : "";
+      document.getElementById("am-location").value = app ? (app.location || "") : "";
+      document.getElementById("am-salary").value   = app ? (app.salary || "") : "";
+      document.getElementById("am-category").value = app ? (app.category || "") : "";
+      document.getElementById("am-visa").value     = app ? (app.visa || "") : "";
+      syncDateLabel();
 
       amError.classList.remove("visible");
       amDelete.style.display   = app ? "inline-block" : "none";
@@ -1688,24 +1960,39 @@
       const fields = {
         company,
         role,
-        date:   document.getElementById("am-date").value || todayISO(),
-        status: document.getElementById("am-status").value,
-        url:    document.getElementById("am-url").value.trim(),
-        notes:  document.getElementById("am-notes").value.trim(),
+        date:     document.getElementById("am-date").value || todayISO(),
+        status:   document.getElementById("am-status").value,
+        url:      document.getElementById("am-url").value.trim(),
+        notes:    document.getElementById("am-notes").value.trim(),
+        location: document.getElementById("am-location").value.trim(),
+        salary:   document.getElementById("am-salary").value.trim(),
+        category: document.getElementById("am-category").value.trim(),
+        visa:     document.getElementById("am-visa").value.trim(),
       };
 
       const apps = loadApps();
       if (editingId) {
         const app = apps.find(a => a.id === editingId);
+        // Status moved out of "To apply" without touching the date: the date
+        // still means "added", so replace it with today as the date applied.
+        if (app && app.status === "saved" && fields.status !== "saved" && fields.date === app.date) {
+          fields.date = todayISO();
+        }
         if (app) Object.assign(app, fields);
       } else {
         apps.unshift({ id: Date.now().toString(), coverLetter: "", ...fields });
       }
       saveApps(apps);
       closeAppModal();
-      renderApps();
+      rerender();
       renderStats();
     });
+
+    function syncDateLabel() {
+      document.getElementById("am-date-label").textContent =
+        document.getElementById("am-status").value === "saved" ? "Date added" : "Date applied";
+    }
+    document.getElementById("am-status").addEventListener("change", syncDateLabel);
 
     amViewLtr.addEventListener("click", () => {
       const id = editingId;
@@ -1727,14 +2014,14 @@
 
     function deleteApp(id) {
       saveApps(loadApps().filter(a => a.id !== id));
-      renderApps();
+      rerender();
       renderStats();
     }
 
     document.getElementById("clear-all-btn").addEventListener("click", () => {
       if (confirm("Remove all applications? This cannot be undone.")) {
         saveApps([]);
-        renderApps();
+        rerender();
         renderStats();
       }
     });
@@ -1912,12 +2199,14 @@
     document.getElementById("import-input").addEventListener("change", e => {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
+      const isCsv = /\.csv$/i.test(file.name) || file.type === "text/csv";
       const reader = new FileReader();
       reader.onload = () => {
         try {
-          applyBackup(JSON.parse(reader.result));
+          if (isCsv) applyCsv(String(reader.result));
+          else applyBackup(JSON.parse(reader.result));
         } catch (err) {
-          ioMessage("That file could not be read as a backup: " + err.message, "bad");
+          ioMessage(`That file could not be read as a ${isCsv ? "CSV job list" : "backup"}: ` + err.message, "bad");
         }
       };
       reader.onerror = () => ioMessage("Could not read that file.", "bad");
@@ -1936,32 +2225,7 @@
       }
 
       const incoming = data.applications.filter(a => a && typeof a === "object" && a.company && a.role);
-      const apps = loadApps();
-      const byId = new Map(apps.map(a => [a.id, a]));
-      let added = 0, updated = 0;
-
-      incoming.forEach(raw => {
-        const rec = {
-          id:          String(raw.id || Date.now().toString() + Math.random().toString(16).slice(2)),
-          company:     String(raw.company),
-          role:        String(raw.role),
-          status:      STATUS_LABELS[raw.status] ? raw.status : "applied",
-          coverLetter: typeof raw.coverLetter === "string" ? raw.coverLetter : "",
-          date:        /^\d{4}-\d{2}-\d{2}$/.test(raw.date) ? raw.date : todayISO(),
-          url:         typeof raw.url === "string" ? raw.url : "",
-          notes:       typeof raw.notes === "string" ? raw.notes : "",
-        };
-        if (byId.has(rec.id)) {
-          Object.assign(byId.get(rec.id), rec);
-          updated++;
-        } else {
-          apps.unshift(rec);
-          byId.set(rec.id, rec);
-          added++;
-        }
-      });
-
-      saveApps(apps);
+      const { added, updated } = mergeRecords(incoming);
 
       const extras = [];
       if (data.profile && Object.keys(data.profile).length && !Object.keys(loadProfile()).length) {
@@ -1973,7 +2237,7 @@
         extras.push("resume");
       }
 
-      renderApps();
+      rerender();
       renderStats();
 
       const skipped = data.applications.length - incoming.length;
@@ -1983,17 +2247,179 @@
       ioMessage(msg, "ok");
     }
 
+    // Merge, never destroy. A record matches an existing one by id, then by
+    // posting link, then by company + role, so re-importing an edited
+    // spreadsheet updates rows instead of duplicating them. Blank incoming
+    // fields never wipe out something already saved.
+    const TEXT_FIELDS = ["url", "notes", "location", "salary", "category", "visa"];
+
+    function normalizeRecord(raw) {
+      const rec = {
+        id:          raw.id ? String(raw.id) : "",
+        company:     String(raw.company).trim(),
+        role:        String(raw.role).trim(),
+        status:      parseStatus(raw.status),
+        coverLetter: typeof raw.coverLetter === "string" ? raw.coverLetter : "",
+        date:        parseDate(raw.date),
+      };
+      TEXT_FIELDS.forEach(f => { rec[f] = raw[f] == null ? "" : String(raw[f]).trim(); });
+      return rec;
+    }
+
+    function mergeRecords(rawList) {
+      const apps = loadApps();
+      const key = (c, r) => `${String(c).trim().toLowerCase()}|${String(r).trim().toLowerCase()}`;
+      const byId  = new Map(apps.map(a => [a.id, a]));
+      const byUrl = new Map(apps.filter(a => a.url).map(a => [a.url.trim(), a]));
+      const byKey = new Map(apps.map(a => [key(a.company, a.role), a]));
+      let added = 0, updated = 0;
+
+      rawList.forEach(raw => {
+        const rec = normalizeRecord(raw);
+        const existing = (rec.id && byId.get(rec.id)) || (rec.url && byUrl.get(rec.url)) || byKey.get(key(rec.company, rec.role));
+        if (existing) {
+          existing.company = rec.company;
+          existing.role = rec.role;
+          // A list of jobs to apply to must never undo progress: something
+          // already applied/interviewing stays where it is.
+          const downgrade = rec.status === "saved" && existing.status !== "saved";
+          if (raw.status && !downgrade) existing.status = rec.status;
+          if (raw.date && !downgrade) existing.date = rec.date;
+          if (rec.coverLetter) existing.coverLetter = rec.coverLetter;
+          TEXT_FIELDS.forEach(f => { if (rec[f]) existing[f] = rec[f]; });
+          updated++;
+        } else {
+          if (!rec.id) rec.id = Date.now().toString() + Math.random().toString(16).slice(2);
+          if (!raw.status) rec.status = "saved";
+          apps.unshift(rec);
+          byId.set(rec.id, rec);
+          if (rec.url) byUrl.set(rec.url, rec);
+          byKey.set(key(rec.company, rec.role), rec);
+          added++;
+        }
+      });
+
+      saveApps(apps);
+      return { added, updated };
+    }
+
+    const STATUS_ALIASES = {
+      "to apply": "saved", "saved": "saved", "not applied": "saved", "wishlist": "saved", "未申请": "saved", "待申请": "saved", "还没申请": "saved",
+      "applied": "applied", "已投": "applied", "已申请": "applied",
+      "1st interview": "interview_1", "interview": "interview_1", "2nd interview": "interview_2", "3rd interview": "interview_3", "面试": "interview_1",
+      "offer": "offer", "rejected": "rejected", "拒": "rejected", "被拒": "rejected", "withdrawn": "withdrawn", "放弃": "withdrawn",
+    };
+
+    function parseStatus(v) {
+      if (!v) return "applied";
+      const s = String(v).trim();
+      if (STATUS_LABELS[s]) return s;
+      return STATUS_ALIASES[s.toLowerCase()] || "applied";
+    }
+
+    function parseDate(v) {
+      if (!v) return todayISO();
+      const s = String(v).trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+      const d = new Date(s);
+      if (isNaN(d.getTime())) return todayISO();
+      d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+      return d.toISOString().slice(0, 10);
+    }
+
+    // RFC 4180-ish parser: quoted fields, doubled quotes, commas and newlines inside quotes.
+    function parseCsv(text) {
+      const rows = [];
+      let row = [], field = "", inQuotes = false;
+      text = text.replace(/^﻿/, "");
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        if (inQuotes) {
+          if (ch === '"') {
+            if (text[i + 1] === '"') { field += '"'; i++; }
+            else inQuotes = false;
+          } else field += ch;
+        } else if (ch === '"') inQuotes = true;
+        else if (ch === ",") { row.push(field); field = ""; }
+        else if (ch === "\n" || ch === "\r") {
+          if (ch === "\r" && text[i + 1] === "\n") i++;
+          row.push(field); rows.push(row); row = []; field = "";
+        } else field += ch;
+      }
+      if (field !== "" || row.length) { row.push(field); rows.push(row); }
+      return rows.filter(r => r.some(c => c.trim() !== ""));
+    }
+
+    const CSV_HEADERS = {
+      company:  ["company", "employer", "公司"],
+      role:     ["role", "title", "job title", "position", "岗位", "职位"],
+      status:   ["status", "application status", "申请状态", "状态"],
+      location: ["location", "locations", "地点"],
+      salary:   ["salary", "pay", "compensation", "薪资"],
+      category: ["category", "track", "type", "方向", "类别"],
+      visa:     ["visa", "sponsorship", "visa sponsorship", "签证"],
+      url:      ["url", "link", "job link", "posting", "handshake link", "链接"],
+      date:     ["date", "date added", "date applied", "日期"],
+      notes:    ["notes", "note", "备注"],
+    };
+
+    function applyCsv(text) {
+      const rows = parseCsv(text);
+      if (rows.length < 2) throw new Error("no rows found");
+      const header = rows[0].map(h => h.trim().toLowerCase());
+      const col = {};
+      Object.entries(CSV_HEADERS).forEach(([field, names]) => {
+        const i = header.findIndex(h => names.includes(h));
+        if (i >= 0) col[field] = i;
+      });
+      if (col.company == null || col.role == null) throw new Error('needs "Company" and "Role" columns');
+
+      const records = rows.slice(1).map(r => {
+        const rec = {};
+        Object.entries(col).forEach(([field, i]) => { rec[field] = (r[i] || "").trim(); });
+        return rec;
+      }).filter(r => r.company && r.role);
+
+      const { added, updated } = mergeRecords(records);
+      rerender();
+      renderStats();
+      const skipped = rows.length - 1 - records.length;
+      ioMessage(`Imported CSV: ${added} added, ${updated} updated.` +
+        (skipped ? ` ${skipped} row${skipped === 1 ? " was" : "s were"} skipped (missing company or role).` : ""), "ok");
+    }
+
+    function exportCsv() {
+      const cols = [["Company", "company"], ["Role", "role"], ["Status", "status"], ["Category", "category"],
+                    ["Location", "location"], ["Salary", "salary"], ["Visa", "visa"], ["Date", "date"],
+                    ["Link", "url"], ["Notes", "notes"]];
+      const esc = v => /[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+      const lines = [cols.map(c => c[0]).join(",")].concat(loadApps().map(a =>
+        cols.map(([, k]) => esc(k === "status" ? (STATUS_LABELS[a.status] || a.status) : String(a[k] || ""))).join(",")
+      ));
+      // BOM so Excel opens UTF-8 (Chinese text, en dashes) correctly.
+      const url = URL.createObjectURL(new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `job-applications-${todayISO()}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    document.getElementById("export-csv-btn").addEventListener("click", exportCsv);
+
     // ── Stats ──
     function renderStats() {
       const apps = loadApps();
-      const c = { applied: 0, interview_1: 0, interview_2: 0, interview_3: 0, offer: 0, rejected: 0, withdrawn: 0 };
+      const c = { saved: 0, applied: 0, interview_1: 0, interview_2: 0, interview_3: 0, offer: 0, rejected: 0, withdrawn: 0 };
       apps.forEach(a => { if (a.status in c) c[a.status]++; });
       const interviews = c.interview_1 + c.interview_2 + c.interview_3 + c.offer;
       const stats = [
-        { label: "Total",      value: apps.length,  color: "#1a1a1a" },
+        { label: "To apply",   value: c.saved,                   color: "#1a1a1a" },
+        { label: "Applied",    value: apps.length - c.saved,     color: "#1a1a1a" },
         { label: "Interviews", value: interviews,    color: "#1a1a1a" },
         { label: "Offers",     value: c.offer,       color: "#1a1a1a" },
-        { label: "Rejected",   value: c.rejected,    color: "#1a1a1a" },
       ];
       document.getElementById("stats-row").innerHTML = stats.map(s =>
         `<div class="stat-card">
@@ -2015,6 +2441,8 @@
     };
 
     function buildSankeyData(apps) {
+      // "To apply" jobs have not been sent anywhere yet, so they stay out of the funnel.
+      apps = apps.filter(a => a.status !== "saved");
       const c = { applied: 0, interview_1: 0, interview_2: 0, interview_3: 0, offer: 0, rejected: 0, withdrawn: 0 };
       apps.forEach(a => { if (a.status in c) c[a.status]++; });
       const interviewing = c.interview_1 + c.interview_2 + c.interview_3 + c.offer;
@@ -2045,7 +2473,7 @@
       const emptyEl = document.getElementById("sankey-empty");
       wrap.innerHTML = "";
 
-      const apps = loadApps();
+      const apps = loadApps().filter(a => a.status !== "saved");
       if (apps.length === 0) { emptyEl.style.display = "block"; return; }
       emptyEl.style.display = "none";
 
@@ -2122,7 +2550,7 @@
 
     // ── Utils ──
     function escHtml(str) {
-      return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+      return String(str ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
     }
 
     function formatDate(iso) {
