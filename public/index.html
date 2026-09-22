@@ -2276,7 +2276,11 @@
 
       rawList.forEach(raw => {
         const rec = normalizeRecord(raw);
-        const existing = (rec.id && byId.get(rec.id)) || (rec.url && byUrl.get(rec.url)) || byKey.get(key(rec.company, rec.role));
+        // Same company + role only counts as a match when the links don't
+        // disagree — one team can post the same title in two cities.
+        const sameName = byKey.get(key(rec.company, rec.role));
+        const nameMatch = sameName && (!rec.url || !sameName.url || sameName.url.trim() === rec.url) ? sameName : null;
+        const existing = (rec.id && byId.get(rec.id)) || (rec.url && byUrl.get(rec.url)) || nameMatch;
         if (existing) {
           existing.company = rec.company;
           existing.role = rec.role;
