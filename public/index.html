@@ -529,6 +529,18 @@
       border: 1px solid transparent;
     }
 
+    .backup-target {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      font-size: 0.78rem;
+      color: #888;
+      margin-bottom: 0.85rem;
+    }
+
+    .backup-target strong { color: #555; font-weight: 600; }
+
     .io-msg.visible { display: block; }
     .io-msg.ok  { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
     .io-msg.bad { background: #fff5f5; color: #b91c1c; border-color: #fecaca; }
@@ -913,6 +925,11 @@
         </div>
       </div>
 
+      <div class="backup-target" id="backup-target" style="display:none">
+        <span>Backing up to <strong id="backup-target-name"></strong></span>
+        <button class="btn-link" id="rebind-btn">Change file</button>
+      </div>
+
       <div class="io-msg" id="io-msg"></div>
 
       <!-- Board view -->
@@ -1235,6 +1252,7 @@
         if (tab.dataset.page === "applications") {
           renderStats();
           renderApps();
+          refreshBackupTarget();
           if (currentView === "chart") renderSankey();
         }
         if (tab.dataset.page === "profile") initProfilePage();
@@ -1761,19 +1779,62 @@
       ioMessage._t = setTimeout(() => { el.className = "io-msg"; }, 8000);
     }
 
-    document.getElementById("export-btn").addEventListener("click", () => {
-      const apps = loadApps();
-      const payload = {
+    // A page cannot reach into the filesystem on its own, but the File System
+    // Access API lets the user hand over one file permanently. We keep that
+    // handle in IndexedDB (localStorage cannot hold it) and overwrite the same
+    // file on every export, so backups never pile up. Browsers without the API
+    // fall back to an ordinary dated download.
+    const CAN_PICK_FILE = typeof window.showSaveFilePicker === "function";
+    const IDB_NAME = "cla_backup", IDB_STORE = "handles", HANDLE_KEY = "backupFile";
+
+    function idb(mode, run) {
+      return new Promise((resolve, reject) => {
+        const open = indexedDB.open(IDB_NAME, 1);
+        open.onupgradeneeded = () => open.result.createObjectStore(IDB_STORE);
+        open.onerror = () => reject(open.error);
+        open.onsuccess = () => {
+          const db = open.result;
+          let req;
+          // A store call can throw synchronously (e.g. DataCloneError). Without
+          // this the rejection would escape the event handler and the promise
+          // would never settle, hanging every later export.
+          try {
+            req = run(db.transaction(IDB_STORE, mode).objectStore(IDB_STORE));
+          } catch (err) {
+            db.close(); reject(err); return;
+          }
+          req.onsuccess = () => { resolve(req.result); db.close(); };
+          req.onerror = () => { reject(req.error); db.close(); };
+        };
+      });
+    }
+
+    const getHandle   = () => idb("readonly",  s => s.get(HANDLE_KEY)).catch(() => null);
+    const putHandle   = h  => idb("readwrite", s => s.put(h, HANDLE_KEY)).catch(() => {});
+    const clearHandle = () => idb("readwrite", s => s.delete(HANDLE_KEY)).catch(() => {});
+
+    async function ensurePermission(handle) {
+      try {
+        const opts = { mode: "readwrite" };
+        if (await handle.queryPermission(opts) === "granted") return true;
+        // Only works inside a user gesture — the Export click is one.
+        return await handle.requestPermission(opts) === "granted";
+      } catch { return false; }
+    }
+
+    function buildBackup() {
+      return {
         app: "cover-letter-agent",
         version: BACKUP_VERSION,
         exportedAt: new Date().toISOString(),
-        applications: apps,
+        applications: loadApps(),
         profile: loadProfile(),
         resume: loadResume(),
       };
+    }
 
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
+    function downloadDated(json) {
+      const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
       const a = document.createElement("a");
       a.href = url;
       a.download = `cover-letter-backup-${todayISO()}.json`;
@@ -1781,9 +1842,68 @@
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
 
-      ioMessage(`Saved ${apps.length} application${apps.length === 1 ? "" : "s"} to your downloads folder.`, "ok");
-    });
+    async function refreshBackupTarget() {
+      const row = document.getElementById("backup-target");
+      if (!CAN_PICK_FILE) { row.style.display = "none"; return; }
+      const handle = await getHandle();
+      if (handle) {
+        document.getElementById("backup-target-name").textContent = handle.name;
+        row.style.display = "flex";
+      } else {
+        row.style.display = "none";
+      }
+    }
+
+    async function exportBackup(pickNewFile) {
+      const payload = buildBackup();
+      const json = JSON.stringify(payload, null, 2);
+      const count = payload.applications.length;
+      const noun = `${count} application${count === 1 ? "" : "s"}`;
+
+      if (!CAN_PICK_FILE) {
+        downloadDated(json);
+        ioMessage(`Saved ${noun} to your downloads folder.`, "ok");
+        return;
+      }
+
+      try {
+        let handle = pickNewFile ? null : await Promise.race([
+          getHandle(),
+          new Promise(res => setTimeout(() => res(null), 3000)),
+        ]);
+        if (handle && !await ensurePermission(handle)) handle = null;
+
+        if (!handle) {
+          handle = await window.showSaveFilePicker({
+            suggestedName: "cover-letter-backup.json",
+            types: [{ description: "Cover Letter Agent backup", accept: { "application/json": [".json"] } }],
+          });
+          await putHandle(handle);
+        }
+
+        const writable = await handle.createWritable();
+        await writable.write(json);
+        await writable.close();
+
+        ioMessage(`Updated ${handle.name} — ${noun}.`, "ok");
+        await refreshBackupTarget();
+      } catch (err) {
+        if (err && err.name === "AbortError") return;   // user closed the picker
+        if (err && (err.name === "NotFoundError" || err.name === "NotAllowedError")) {
+          await clearHandle();
+          await refreshBackupTarget();
+          ioMessage("That backup file can no longer be reached — it may have been moved or deleted. Press Export backup to choose a new one.", "bad");
+          return;
+        }
+        downloadDated(json);
+        ioMessage("Could not write to the linked file, so a dated copy was downloaded instead.", "bad");
+      }
+    }
+
+    document.getElementById("export-btn").addEventListener("click", () => exportBackup(false));
+    document.getElementById("rebind-btn").addEventListener("click", () => exportBackup(true));
 
     document.getElementById("import-btn").addEventListener("click", () => {
       document.getElementById("import-input").click();
